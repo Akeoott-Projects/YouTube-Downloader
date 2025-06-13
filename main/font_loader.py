@@ -3,7 +3,7 @@ import sys
 import ctypes
 import tkinter as tk
 import tkinter.font as tkfont
-# Assuming these are correctly imported from your project
+
 from error_handler import gather_info
 from logging_setup import log
 
@@ -55,25 +55,11 @@ def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
                 gather_info(e, "warning", f"Error occurred while loading font {font_path} on Windows.", __file__)
                 return False
         else:
-            # For macOS and Linux, rely on the font being installed on the system
-            # or registered via lower-level Tcl commands if you absolutely
-            # need to load it from a file for bundling (more advanced).
-            # The tkfont.Font constructor does NOT take a 'file' argument.
             try:
                 # Create a temporary Tkinter root to initialize Tk
                 root = tk.Tk()
                 root.withdraw() # Hide the main window
-
-                # Attempt to load the font using the Tk `font` command directly.
-                # This is the more correct way to load a font from a file path
-                # for Tkinter on non-Windows platforms, if supported by the Tcl/Tk version.
-                # However, the most reliable way is still system installation.
-                # For basic use, if the font is installed on the system,
-                # you just need to reference it by family name.
                 try:
-                    # Removed 'file=path' as it's not a valid option for tkfont.Font
-                    # This line now just attempts to create a font object, assuming 'Roboto'
-                    # is available on the system.
                     tkfont.Font(root=root, family="Roboto")
                     log.info(f"Successfully referenced system font: Roboto (from {font_path})")
                     root.destroy()

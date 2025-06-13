@@ -1,4 +1,5 @@
 # user_input.py gets user input for selecting download
+
 from logging_setup import log
 import font_loader  # Ensure font is loaded before GUI is created
 
