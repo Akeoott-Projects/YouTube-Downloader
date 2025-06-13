@@ -18,14 +18,14 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'Akeoottt'),
+            StringStruct('CompanyName', 'Akeoott-Projects'),
             StringStruct('FileDescription', 'YouTube Downloader'),
-            StringStruct('FileVersion', '1.0.0-beta'),
+            StringStruct('FileVersion', '1.0.0-alpha'),
             StringStruct('InternalName', 'YouTube Downloader'),
             StringStruct('LegalCopyright', '© Akeoott 2025'),
             StringStruct('OriginalFilename', 'main.exe'),
             StringStruct('ProductName', 'YouTube Downloader'),
-            StringStruct('ProductVersion', '1.0.0-beta')
+            StringStruct('ProductVersion', '1.0.0-alpha')
           ]
         )
       ]

@@ -1,7 +1,6 @@
 # user_input.py gets user input for selecting download
 from logging_setup import log
-from error_handler import gather_info
-from constants import ISSUE_INFO, WARNING_TITLE
+import font_loader  # Ensure font is loaded before GUI is created
 
 import customtkinter as ctk
 from tkinter import messagebox
@@ -150,7 +149,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         self.available_audio_qualities = audio_qualities
         self.available_video_resolutions = video_resolutions
-        self.video_title_val = video_title  # Optionally store the video title if needed
+        self.video_title_val = video_title
         
         log.info(f"Video title: {video_title}")
         log.info(f"Available audio qualities: {self.available_audio_qualities}")

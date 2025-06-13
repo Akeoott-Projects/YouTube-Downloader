@@ -2,7 +2,6 @@
 
 import yt_dlp
 from logging_setup import log
-from error_handler import gather_info
 
 def fetch_youtube_video_info(url: str):
     """
@@ -60,8 +59,6 @@ def fetch_youtube_video_info(url: str):
             # Deduplicate and sort lists
             audio_qualities = sorted(list(set(audio_qualities)), key=lambda x: int(x.replace('kbps', '')), reverse=True)
             video_resolutions = sorted(list(set(video_resolutions)), key=lambda x: int(x.replace('p', '')), reverse=True)
-
-            log.info(f"Fetched video info: title='{video_title}', audio_qualities={audio_qualities}, video_resolutions={video_resolutions}")
 
             return True, video_title, audio_qualities, video_resolutions, ""
 
