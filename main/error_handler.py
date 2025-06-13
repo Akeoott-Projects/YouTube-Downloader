@@ -128,6 +128,6 @@ def gather_info(
 if __name__ == "__main__":
     try:
         # Simulate an error for testing
-        1 / 0
+        1 / 0   # type: ignore
     except Exception as e:
         gather_info(e, "error", "Testing error handler", __file__)
