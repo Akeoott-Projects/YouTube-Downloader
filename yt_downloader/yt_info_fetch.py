@@ -1,21 +1,22 @@
 # yt_info_fetch.py is there to fetch information such as resolution, audio quality and format.
-YT_INFO_FETCH_FILE_VERSION = "1.0.0"
 
 import yt_dlp
 from logging_setup import log
+from error_handler import gather_info
 
 def fetch_youtube_video_info(url: str):
     """
-    Fetches available audio qualities and video resolutions for a given YouTube URL using yt-dlp.
+    Fetches available audio qualities, video resolutions, and the video title for a given YouTube URL using yt-dlp.
 
     Args:
         url (str): The YouTube video URL.
 
     Returns:
-        tuple: (success (bool), audio_qualities (list), video_resolutions (list), error_message (str))
+        tuple: (success (bool), video_title (str), audio_qualities (list), video_resolutions (list), error_message (str))
     """
     log.info(f"Attempting to fetch video info for: {url}")
 
+    video_title = ""
     audio_qualities = []
     video_resolutions = []
     error_message = ""
@@ -33,10 +34,13 @@ def fetch_youtube_video_info(url: str):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False) # Only extract info, don't download
 
-            if 'entries' in info_dict: # Handle playlists/channels                              # type: ignore
-                info_dict = info_dict['entries'][0] # Take the first video if it's a playlist   # type: ignore
+            if isinstance(info_dict, dict) and 'entries' in info_dict: # Handle playlists/channels
+                info_dict = info_dict['entries'][0] # Take the first video if it's a playlist
 
-            formats = info_dict.get('formats', [])  # type: ignore
+            # Extract the video title
+            video_title = info_dict.get('title', '') # type: ignore
+
+            formats = info_dict.get('formats', []) # type: ignore
 
             for f in formats:
                 # Audio qualities (check for audio-only streams and bitrate)
@@ -53,38 +57,38 @@ def fetch_youtube_video_info(url: str):
                     if height and ext == 'mp4': # Assuming you want MP4 video specifically
                         video_resolutions.append(f"{height}p")
                         
-        # Deduplicate and sort lists
-        audio_qualities = sorted(list(set(audio_qualities)), key=lambda x: int(x.replace('kbps', '')), reverse=True)
-        video_resolutions = sorted(list(set(video_resolutions)), key=lambda x: int(x.replace('p', '')), reverse=True)
+            # Deduplicate and sort lists
+            audio_qualities = sorted(list(set(audio_qualities)), key=lambda x: int(x.replace('kbps', '')), reverse=True)
+            video_resolutions = sorted(list(set(video_resolutions)), key=lambda x: int(x.replace('p', '')), reverse=True)
 
-        return True, audio_qualities, video_resolutions, ""
+            log.info(f"Fetched video info: title='{video_title}', audio_qualities={audio_qualities}, video_resolutions={video_resolutions}")
+
+            return True, video_title, audio_qualities, video_resolutions, ""
 
     except yt_dlp.utils.DownloadError as e:
         error_message = f"DownloadError: {e}"
         log.error(f"yt-dlp DownloadError for {url}: {error_message}")
-        return False, [], [], error_message
+        return False, "", [], [], error_message
     except Exception as e:
         error_message = f"An unexpected error occurred: {e}"
         log.exception(f"Unexpected error fetching info for {url}: {error_message}") # Logs traceback
-        return False, [], [], error_message
+        return False, "", [], [], error_message
 
-if False:
-    if __name__ == '__main__':
+if __name__ == '__main__':
 
-        test_url_valid = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" # Rick Astley - Never Gonna Give You Up
-        test_url_invalid = "https://www.youtube.com/watch?v=invalidvideoid"
-        test_url_no_quality = "https://www.youtube.com/watch?v=no_quality_example"
+    test_url_valid = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" # Rick Astley - Never Gonna Give You Up
+    test_url_invalid = "https://www.youtube.com/watch?v=invalidvideoid"
 
-        print(f"\n--- Testing valid URL: {test_url_valid} ---")
-        success, audio, video, err = fetch_youtube_video_info(test_url_valid)
-        if success:
-            print(f"Success! Audio: {audio}, Video: {video}")
-        else:
-            print(f"Failed: {err}")
+    print(f"\n--- Testing valid URL: {test_url_valid} ---")
+    success, title, audio, video, err = fetch_youtube_video_info(test_url_valid)
+    if success:
+        print(f"Success! Title: '{title}', Audio: {audio}, Video: {video}")
+    else:
+        print(f"Failed: {err}")
 
-        print(f"\n--- Testing invalid URL: {test_url_invalid} ---")
-        success, audio, video, err = fetch_youtube_video_info(test_url_invalid)
-        if success:
-            print(f"Success! Audio: {audio}, Video: {video}")
-        else:
-            print(f"Failed: {err}")
+    print(f"\n--- Testing invalid URL: {test_url_invalid} ---")
+    success, title, audio, video, err = fetch_youtube_video_info(test_url_invalid)
+    if success:
+        print(f"Success! Title: '{title}', Audio: {audio}, Video: {video}")
+    else:
+        print(f"Failed: {err}")

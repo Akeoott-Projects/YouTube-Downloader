@@ -1,5 +1,4 @@
 # logging_setup.py for configuring logging via the akeoott_logging_config library
-LOGGING_SETUP_FILE_VERSION = "1.0.0"
 
 from akeoott_logging_config import LogConfig
 import logging

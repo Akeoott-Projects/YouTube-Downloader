@@ -1,11 +1,11 @@
 # user_input.py gets user input for selecting download
-USER_INPUT_FILE_VERSION = "1.0.0"
-
 from logging_setup import log
+from error_handler import gather_info
+from constants import ISSUE_INFO, WARNING_TITLE
+
 import customtkinter as ctk
 from tkinter import messagebox
 import threading # For running blocking operations in the background
-from constants import ISSUE_INFO, WARNING_TITLE
 
 # Import the new function from the separate file
 from yt_info_fetch import fetch_youtube_video_info 
@@ -112,11 +112,13 @@ class YouTubeDownloaderGUI(ctk.CTk):
         url = self.url_entry.get().strip()
         if not url:
             self.page1_error_label.configure(text="URL cannot be empty.")
+            log.warning("User attempted to proceed with empty URL input.")
             return
         
         # Basic URL validation (you might want a more robust regex here)
         if not (url.startswith("http://") or url.startswith("https://")) or "youtube.com/watch?v=" not in url:
             self.page1_error_label.configure(text="Please enter a valid YouTube URL.")
+            log.warning("User entered invalid YouTube URL.")
             return
 
         self.video_url_val = url
@@ -132,11 +134,11 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
     def _fetch_video_info_thread(self, url: str):
         """Runs the blocking video info fetching in a separate thread."""
-        success, audio_qualities, video_resolutions, error_msg = fetch_youtube_video_info(url)  # type: ignore
+        success, video_title, audio_qualities, video_resolutions, error_msg = fetch_youtube_video_info(url)  # type: ignore
         # Schedule the result processing back on the main GUI thread
-        self.after(0, self._after_fetch_video_info_callback, success, audio_qualities, video_resolutions, error_msg)
+        self.after(0, self._after_fetch_video_info_callback, success, video_title, audio_qualities, video_resolutions, error_msg)
 
-    def _after_fetch_video_info_callback(self, success: bool, audio_qualities: list, video_resolutions: list, error_msg: str):
+    def _after_fetch_video_info_callback(self, success: bool, video_title: str, audio_qualities: list, video_resolutions: list, error_msg: str):
         """Callback executed on the main GUI thread after video info is fetched."""
         self.fetching_status_label.configure(text="") # Clear fetching message
 
@@ -148,7 +150,9 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         self.available_audio_qualities = audio_qualities
         self.available_video_resolutions = video_resolutions
+        self.video_title_val = video_title  # Optionally store the video title if needed
         
+        log.info(f"Video title: {video_title}")
         log.info(f"Available audio qualities: {self.available_audio_qualities}")
         log.info(f"Available video resolutions: {self.available_video_resolutions}")
 
@@ -188,6 +192,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         if not selected_quality or selected_quality in ["No qualities available", "No resolutions available"]:
             self.page3_error_label.configure(text="Please select a valid quality/resolution.")
+            log.warning("User attempted to download without selecting a valid quality/resolution.")
             return
 
         self.quality_val = selected_quality
@@ -198,38 +203,37 @@ class YouTubeDownloaderGUI(ctk.CTk):
     def get_inputs(self):
         """
         Displays the GUI and waits for user input.
-        Returns the collected inputs after the user submits the form or closes the window.
-
         Returns:
-            A tuple containing: (video_url, format, quality_resolution).
+            A tuple containing: (video_url, format, quality_resolution, video_title).
             All elements are None if inputs are not successfully gathered (e.g., window closed).
         """
         self.mainloop() # Start the GUI interaction
 
         # This part executes after self.destroy() is called
         if not self.data_ready: # If window was closed without pressing Download button
-            log.info("GUI closed without providing final input.")
-            return None, None, None
+            log.info("GUI was closed or inputs were not finalized by the user. Exiting.")
+            return None, None, None, None
+        
+        self.video_title = getattr(self, 'video_title_val', None)
 
         log.debug(
             f"Returning from GUI:\n"
             f"Video URL: {self.video_url_val}\n"
             f"Format: {self.format_val}\n"
-            f"Quality/Resolution: {self.quality_val}"
+            f"Quality/Resolution: {self.quality_val}\n"
+            f"Video Title: {self.video_title}"
         )
-        return self.video_url_val, self.format_val, self.quality_val
+        return self.video_url_val, self.format_val, self.quality_val, self.video_title
 
-# --- For testing standalone ---
-if False:
-    if __name__ == "__main__":
-        app_gui = YouTubeDownloaderGUI()
-        url, fmt, quality = app_gui.get_inputs()
+if __name__ == "__main__":
+    app_gui = YouTubeDownloaderGUI()
+    url, fmt, quality, title = app_gui.get_inputs()
 
-        if url and fmt and quality:
-            print("\n--- Download Details ---")
-            print(f"Video URL: {url}")
-            print(f"Download Format: {fmt}")
-            print(f"Selected Quality/Resolution: {quality}")
-            print("\nNow you would proceed with the actual download using yt-dlp!")
-        else:
-            print("\nGUI was closed or inputs were not finalized.")
+    if url and fmt and quality:
+        print("\n--- Download Details ---")
+        print(f"Video URL: {url}")
+        print(f"Download Format: {fmt}")
+        print(f"Selected Quality/Resolution: {quality}")
+        print(f"Video Title: {title}")
+    else:
+        print("\nGUI was closed or inputs were not finalized.")
