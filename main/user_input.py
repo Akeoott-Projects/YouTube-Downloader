@@ -134,18 +134,18 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
     def _fetch_video_info_thread(self, url: str):
         """Runs the blocking video info fetching in a separate thread."""
-        success, video_title, audio_qualities, video_resolutions, error_msg = fetch_youtube_video_info(url)  # type: ignore
+        success, video_title, audio_qualities, video_resolutions, e = fetch_youtube_video_info(url)  # type: ignore
         # Schedule the result processing back on the main GUI thread
-        self.after(0, self._after_fetch_video_info_callback, success, video_title, audio_qualities, video_resolutions, error_msg)
+        self.after(0, self._after_fetch_video_info_callback, success, video_title, audio_qualities, video_resolutions, e)
 
-    def _after_fetch_video_info_callback(self, success: bool, video_title: str, audio_qualities: list, video_resolutions: list, error_msg: str):
+    def _after_fetch_video_info_callback(self, success: bool, video_title: str, audio_qualities: list, video_resolutions: list, e):
         """Callback executed on the main GUI thread after video info is fetched."""
         self.fetching_status_label.configure(text="") # Clear fetching message
 
         if not success:
-            self.page1_error_label.configure(text=f"Error fetching video info: {error_msg}")
-            log.error(f"Failed to fetch video info for {self.video_url_val}: {error_msg}")
-            messagebox.showerror("Video Info Error", f"Could not retrieve video information:\n{error_msg}", parent=self)
+            self.page1_error_label.configure(text=f"Error fetching video info: {e}")
+            log.error(f"Failed to fetch video info for {self.video_url_val}: {e}")
+            messagebox.showerror("Video Info Error", f"Could not retrieve video information:\n{e}", parent=self)
             return
 
         self.available_audio_qualities = audio_qualities

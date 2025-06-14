@@ -2,6 +2,7 @@
 
 import yt_dlp
 from logging_setup import log
+from error_handler import gather_info
 
 def fetch_youtube_video_info(url: str):
     """
@@ -18,7 +19,7 @@ def fetch_youtube_video_info(url: str):
     video_title = ""
     audio_qualities = []
     video_resolutions = []
-    error_message = ""
+    e = ""
 
     try:
         # Options for fetching all available formats without downloading
@@ -63,29 +64,29 @@ def fetch_youtube_video_info(url: str):
             return True, video_title, audio_qualities, video_resolutions, ""
 
     except yt_dlp.utils.DownloadError as e:
-        error_message = f"DownloadError: {e}"
-        log.error(f"yt-dlp DownloadError for {url}: {error_message}")
-        return False, "", [], [], error_message
+        log.error(f"yt-dlp DownloadError for {url}: {e}")
+        gather_info(e, "error", "Could not fetch required information about the video.", __file__)
+        return False, "", [], [], e
     except Exception as e:
-        error_message = f"An unexpected error occurred: {e}"
-        log.exception(f"Unexpected error fetching info for {url}: {error_message}") # Logs traceback
-        return False, "", [], [], error_message
+        log.exception(f"Unexpected error fetching info for {url}: {e}") # Logs traceback
+        gather_info(e, "error", "Could not fetch required information about the video.", __file__)
+        return False, "", [], [], e
 
 if __name__ == '__main__':
 
-    test_url_valid = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" # Rick Astley - Never Gonna Give You Up
+    test_url_valid = "https://www.youtube.com/watch?v=hrnASwStFec" # Rick Astley - Never Gonna Give You Up
     test_url_invalid = "https://www.youtube.com/watch?v=invalidvideoid"
 
     print(f"\n--- Testing valid URL: {test_url_valid} ---")
-    success, title, audio, video, err = fetch_youtube_video_info(test_url_valid)
+    success, title, audio, video, e = fetch_youtube_video_info(test_url_valid)
     if success:
         print(f"Success! Title: '{title}', Audio: {audio}, Video: {video}")
     else:
-        print(f"Failed: {err}")
+        print(f"Failed: {e}")
 
     print(f"\n--- Testing invalid URL: {test_url_invalid} ---")
-    success, title, audio, video, err = fetch_youtube_video_info(test_url_invalid)
+    success, title, audio, video, e = fetch_youtube_video_info(test_url_invalid)
     if success:
         print(f"Success! Title: '{title}', Audio: {audio}, Video: {video}")
     else:
-        print(f"Failed: {err}")
+        print(f"Failed: {e}")
