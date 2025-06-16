@@ -21,22 +21,21 @@ def main():
     log.info(f"Starting YouTube Downloader Application (Version: {PROGRAM_VERSION})")
 
     gui = YouTubeDownloaderGUI()
-    video_url, download_format, quality_resolution, video_title = gui.get_inputs()
+    video_url, download_format, resolution, video_title = gui.get_inputs()
 
     # if all True: will start download.
-    if video_url and download_format and quality_resolution:
+    if video_url and download_format and resolution:
         log.info("User inputs successfully gathered from GUI.\n" \
         f"  Video URL: {video_url}\n" \
         f"  Download Format: {download_format}\n" \
-        f"  Selected Quality/Resolution: {quality_resolution}")
+        f"  Selected Quality/Resolution: {resolution}")
 
         if video_title is None:
             video_title = "could-not-retrive-title"
 
-        download_info: list[str] = [video_url, download_format , quality_resolution, video_title]
+        download_info: list[str] = [video_url, download_format , resolution, video_title]
 
-        start_download = DownloadYT(download_info)
-        start_download.download_video()
+        DownloadYT(download_info)
 
     else:
         log.info("GUI was closed or inputs were not finalized by the user. Exiting.")

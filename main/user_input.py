@@ -30,9 +30,9 @@ class YouTubeDownloaderGUI(ctk.CTk):
         self.title("YouTube Downloader")
 
         # --- Instance variables to store inputs ---
-        self.video_url_val = ""
-        self.format_val = "" # "mp3" or "mp4"
-        self.quality_val = "" # "320kbps" or "1080p"
+        self.video_url = ""
+        self.download_format = "" # "mp3" or "mp4"
+        self.resolution = "" # "320kbps" or "1080p"
         self.data_ready = False # Flag to indicate if data is ready for retrieval
 
         # --- Dynamic data for quality/resolution choices ---
@@ -121,7 +121,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
             log.warning("User entered invalid YouTube URL.")
             return
 
-        self.video_url_val = url
+        self.video_url = url
         self.page1_error_label.configure(text="") # Clear error
 
         # Display fetching message
@@ -144,7 +144,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         if not success:
             self.page1_error_label.configure(text=f"Error fetching video info: {e}")
-            log.error(f"Failed to fetch video info for {self.video_url_val}: {e}")
+            log.error(f"Failed to fetch video info for {self.video_url}: {e}")
             messagebox.showerror("Video Info Error", f"Could not retrieve video information:\n{e}", parent=self)
             return
 
@@ -161,11 +161,11 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
     def _select_format(self, format_type: str):
         """Stores the selected format and prepares for quality/resolution selection."""
-        self.format_val = format_type
-        log.info(f"Selected format: {self.format_val}")
+        self.download_format = format_type
+        log.info(f"Selected format: {self.download_format}")
 
         # Populate the quality combobox based on the selected format
-        if self.format_val == "mp3":
+        if self.download_format == "mp3":
             if not self.available_audio_qualities:
                 self.page3_error_label.configure(text="No audio qualities found for this video.")
                 self.quality_combobox.set("No qualities available")
@@ -174,7 +174,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
                 self.quality_combobox.configure(values=self.available_audio_qualities)
                 # Set default to the highest quality if available
                 self.quality_combobox.set(self.available_audio_qualities[0]) 
-        elif self.format_val == "mp4":
+        elif self.download_format == "mp4":
             if not self.available_video_resolutions:
                 self.page3_error_label.configure(text="No video resolutions found for this video.")
                 self.quality_combobox.set("No resolutions available")
@@ -195,9 +195,9 @@ class YouTubeDownloaderGUI(ctk.CTk):
             log.warning("User attempted to download without selecting a valid quality/resolution.")
             return
 
-        self.quality_val = selected_quality
+        self.resolution = selected_quality
         self.data_ready = True
-        log.info(f"Final selection - Format: {self.format_val}, Quality: {self.quality_val}")
+        log.info(f"Final selection - Format: {self.download_format}, Quality: {self.resolution}")
         self.destroy() # Close the GUI
 
     def get_inputs(self):
@@ -218,22 +218,22 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         log.debug(
             f"Returning from GUI:\n"
-            f"Video URL: {self.video_url_val}\n"
-            f"Format: {self.format_val}\n"
-            f"Quality/Resolution: {self.quality_val}\n"
+            f"Video URL: {self.video_url}\n"
+            f"Format: {self.download_format}\n"
+            f"Quality/Resolution: {self.resolution}\n"
             f"Video Title: {self.video_title}"
         )
-        return self.video_url_val, self.format_val, self.quality_val, self.video_title
+        return self.video_url, self.download_format, self.resolution, self.video_title
 
 if __name__ == "__main__":
     app_gui = YouTubeDownloaderGUI()
-    url, fmt, quality, title = app_gui.get_inputs()
+    video_url, download_format, resolution, video_title = app_gui.get_inputs()
 
-    if url and fmt and quality:
+    if video_url and download_format and resolution:
         print("\n--- Download Details ---")
-        print(f"Video URL: {url}")
-        print(f"Download Format: {fmt}")
-        print(f"Selected Quality/Resolution: {quality}")
-        print(f"Video Title: {title}")
+        print(f"Video URL: {video_url}")
+        print(f"Download Format: {download_format}")
+        print(f"Selected Quality/Resolution: {resolution}")
+        print(f"Video Title: {video_title}")
     else:
         print("\nGUI was closed or inputs were not finalized.")
