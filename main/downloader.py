@@ -159,18 +159,27 @@ class DownloadYT:
         Shows a progress window and cleans up leftover files if requested.
         """
         self._show_progress_window()
-        output_path = ydl_opts['outtmpl'].replace('%(ext)s', 'mp4') if cleanup_temp else ydl_opts['outtmpl'].replace('%(ext)s', 'mp3')
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.video_url])
         finally:
             self._close_progress_window()
             if cleanup_temp:
-                self._cleanup_temp_files(output_path)
+                # Handle both string and dict for outtmpl
+                outtmpl = ydl_opts.get('outtmpl')
+                if isinstance(outtmpl, dict):
+                    # Use the 'default' template if available, else pick any value
+                    template = outtmpl.get('default') or next(iter(outtmpl.values()))
+                else:
+                    template = outtmpl
+                if template:
+                    output_path = template.replace('%(ext)s', 'mp4')
+                    self._cleanup_temp_files(output_path)
 
     def download_mp4(self):
         """
         Downloads a YouTube video as MP4 with the specified resolution.
+        Ensures the final file is in a Windows-compatible format (H.264/AAC in MP4).
         """
         resolution = ''.join(filter(str.isdigit, self.resolution))
         if not resolution:
@@ -182,13 +191,12 @@ class DownloadYT:
             'no_warnings': True,
             'ignoreerrors': False,
             'logger': YTDlpLogger(),
-            'format': f'bestvideo[height<={resolution}]+bestaudio/best',
+            'format': f'bestvideo[height<={resolution}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'postprocessor_args': [
-                '-c:v', 'copy',
-                '-c:a', 'aac',
-                '-b:a', '192k',
-            ],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4'
+            }],
         }
 
         directory = self._select_directory()
@@ -201,6 +209,7 @@ class DownloadYT:
     def download_mp4_best_qual(self):
         """
         Downloads a YouTube video as MP4 in the best available quality.
+        Ensures the final file is in a Windows-compatible format (H.264/AAC in MP4).
         """
         base_opts = {
             'outtmpl': f"{self.video_title}.%(ext)s",
@@ -208,13 +217,12 @@ class DownloadYT:
             'no_warnings': True,
             'ignoreerrors': False,
             'logger': YTDlpLogger(),
-            'format': 'bestvideo+bestaudio/best',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'postprocessor_args': [
-                '-c:v', 'copy',
-                '-c:a', 'aac',
-                '-b:a', '192k',
-            ],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4'
+            }],
         }
         directory = self._select_directory()
         if not directory:
