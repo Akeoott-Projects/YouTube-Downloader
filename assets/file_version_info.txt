@@ -3,8 +3,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 0, 1, 0),
+    prodvers=(1, 0, 1, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -20,12 +20,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'Akeoott-Projects'),
             StringStruct('FileDescription', 'YouTube Downloader'),
-            StringStruct('FileVersion', '1.0.0-alpha'),
+            StringStruct('FileVersion', '1.0.1-beta'),
             StringStruct('InternalName', 'YouTube Downloader'),
             StringStruct('LegalCopyright', '© Akeoott 2025'),
             StringStruct('OriginalFilename', 'main.exe'),
             StringStruct('ProductName', 'YouTube Downloader'),
-            StringStruct('ProductVersion', '1.0.0-alpha')
+            StringStruct('ProductVersion', '1.0.1-beta')
           ]
         )
       ]
