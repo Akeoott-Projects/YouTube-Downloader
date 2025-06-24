@@ -67,8 +67,14 @@ class DownloadYT:
         """
         Returns the path to the ffmpeg binary depending on the OS.
         Returns None if not found (yt_dlp will use system ffmpeg if available).
+        Handles both normal and PyInstaller-frozen environments.
         """
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if getattr(sys, 'frozen', False):
+            # Running in a PyInstaller bundle
+            base_dir = sys._MEIPASS # type: ignore
+        else:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
         if sys.platform.startswith("win"):
             ffmpeg_path = os.path.join(base_dir, 'ffmpeg', 'Windows', 'bin', 'ffmpeg.exe')
         elif sys.platform.startswith("linux"):
