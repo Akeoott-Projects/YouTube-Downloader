@@ -1,49 +1,37 @@
-# user_input.py gets user input for selecting download
-
 from logging_setup import log
-import font_loader  # Ensure font is loaded before GUI is created
+import font_loader  
 
 import customtkinter as ctk
 from tkinter import messagebox
-import threading # For running blocking operations in the background
+import threading 
 
-# Import the new function from the separate file
 from yt_info_fetch import fetch_youtube_video_info 
 
 ROBOTO_NORMAL_FONT_TUPLE = ("Roboto", 14)
 ROBOTO_TITLE_FONT_TUPLE = ("Roboto", 18, "bold")
 ROBOTO_SMALL_FONT_TUPLE = ("Roboto", 12)
 
-# CustomTkinter setup
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-# --- GUI Class ---
 class YouTubeDownloaderGUI(ctk.CTk):
-    """
-    A CustomTkinter GUI for obtaining user inputs for YouTube video downloading.
-    Guides the user through link input, format selection (MP3/MP4), and quality/resolution choice.
-    """
+    """Minimal YouTube downloader GUI for user input."""
     def __init__(self):
         super().__init__()
         self.geometry("450x450")
         self.title("YouTube Downloader")
 
-        # --- Instance variables to store inputs ---
         self.video_url = ""
-        self.download_format = "" # "mp3" or "mp4"
-        self.resolution = "" # "320kbps" or "1080p"
-        self.data_ready = False # Flag to indicate if data is ready for retrieval
+        self.download_format = ""
+        self.resolution = ""
+        self.data_ready = False
 
-        # --- Dynamic data for quality/resolution choices ---
         self.available_audio_qualities = []
         self.available_video_resolutions = []
 
-        # --- Layout setup ---
         self.container = ctk.CTkFrame(self)
         self.container.pack(pady=20, padx=60, fill="both", expand=True)
 
-        # --- Pages ---
         self.page1_link_input = ctk.CTkFrame(self.container)
         self.page2_format_selection = ctk.CTkFrame(self.container)
         self.page3_quality_selection = ctk.CTkFrame(self.container)
@@ -55,7 +43,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
         self._show_page(self.page1_link_input)
 
     def create_page1(self):
-        """Creates widgets for the link input page."""
+        """Page for entering YouTube URL."""
         ctk.CTkLabel(self.page1_link_input, text="Enter YouTube Video URL:", font=ROBOTO_TITLE_FONT_TUPLE).pack(pady=10)
 
         self.url_entry = ctk.CTkEntry(self.page1_link_input, placeholder_text="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ", width=300, font=ROBOTO_NORMAL_FONT_TUPLE)
@@ -64,15 +52,13 @@ class YouTubeDownloaderGUI(ctk.CTk):
         self.page1_error_label = ctk.CTkLabel(self.page1_link_input, text="", text_color="red", font=ROBOTO_NORMAL_FONT_TUPLE)
         self.page1_error_label.pack(pady=(0, 5))
         
-        # New "Fetching..." message label
         self.fetching_status_label = ctk.CTkLabel(self.page1_link_input, text="", text_color="grey", font=ROBOTO_SMALL_FONT_TUPLE)
         self.fetching_status_label.pack(pady=(5, 0))
-
 
         ctk.CTkButton(self.page1_link_input, text="Next", font=ROBOTO_NORMAL_FONT_TUPLE, command=self._process_url).pack(pady=10)
 
     def create_page2(self):
-        """Creates widgets for the format selection page."""
+        """Page for selecting download format."""
         ctk.CTkLabel(self.page2_format_selection, text="Select Download Format:", font=ROBOTO_TITLE_FONT_TUPLE).pack(pady=10)
 
         ctk.CTkButton(self.page2_format_selection, text="Download MP3 (Audio)", font=ROBOTO_NORMAL_FONT_TUPLE, command=lambda: self._select_format("mp3")).pack(pady=10)
@@ -81,7 +67,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
         ctk.CTkButton(self.page2_format_selection, text="Back", font=ROBOTO_NORMAL_FONT_TUPLE, command=lambda: self._show_page(self.page1_link_input)).pack(pady=(20, 5))
 
     def create_page3(self):
-        """Creates widgets for the quality/resolution selection page."""
+        """Page for selecting quality/resolution."""
         ctk.CTkLabel(self.page3_quality_selection, text="Select Quality/Resolution:", font=ROBOTO_TITLE_FONT_TUPLE).pack(pady=10)
 
         self.quality_combobox = ctk.CTkComboBox(self.page3_quality_selection, values=[], width=200, font=ROBOTO_NORMAL_FONT_TUPLE)
@@ -95,52 +81,44 @@ class YouTubeDownloaderGUI(ctk.CTk):
         ctk.CTkButton(self.page3_quality_selection, text="Back", font=ROBOTO_NORMAL_FONT_TUPLE, command=lambda: self._show_page(self.page2_format_selection)).pack(pady=(20, 5))
 
     def _show_page(self, page):
-        """Hides all pages and shows the selected one, clearing error messages."""
+        # Switch visible page
         log.debug(f"Switching to page: {page._name}")
         for p in [self.page1_link_input, self.page2_format_selection, self.page3_quality_selection]:
             p.pack_forget()
         page.pack(fill="both", expand=True)
         self.page1_error_label.configure(text="")
         self.page3_error_label.configure(text="")
-        self.fetching_status_label.configure(text="") # Also clear fetching status
+        self.fetching_status_label.configure(text="")
 
     def _process_url(self):
-        """
-        Validates the URL, displays a fetching message, and starts a thread
-        to fetch video info before proceeding to format selection.
-        """
+        # Validate and fetch video info
         url = self.url_entry.get().strip()
         if not url:
             self.page1_error_label.configure(text="URL cannot be empty.")
             log.warning("User attempted to proceed with empty URL input.")
             return
         
-        # Basic URL validation (you might want a more robust regex here)
         if not (url.startswith("http://") or url.startswith("https://")) or "youtube.com/watch?v=" not in url:
             self.page1_error_label.configure(text="Please enter a valid YouTube URL.")
             log.warning("User entered invalid YouTube URL.")
             return
 
         self.video_url = url
-        self.page1_error_label.configure(text="") # Clear error
+        self.page1_error_label.configure(text="")
 
-        # Display fetching message
         self.fetching_status_label.configure(text="Fetching video information... Please wait.")
-        self.update_idletasks() # Force GUI update
+        self.update_idletasks()
 
-        # Start fetching in a separate thread to keep GUI responsive
-        # The _fetch_video_info_thread will call _after_fetch_video_info_callback
         threading.Thread(target=self._fetch_video_info_thread, args=(url,)).start()
 
     def _fetch_video_info_thread(self, url: str):
-        """Runs the blocking video info fetching in a separate thread."""
-        success, video_title, audio_qualities, video_resolutions, e = fetch_youtube_video_info(url)  # type: ignore
-        # Schedule the result processing back on the main GUI thread
+        # Run info fetch in background
+        success, video_title, audio_qualities, video_resolutions, e = fetch_youtube_video_info(url)  
         self.after(0, self._after_fetch_video_info_callback, success, video_title, audio_qualities, video_resolutions, e)
 
     def _after_fetch_video_info_callback(self, success: bool, video_title: str, audio_qualities: list, video_resolutions: list, e):
-        """Callback executed on the main GUI thread after video info is fetched."""
-        self.fetching_status_label.configure(text="") # Clear fetching message
+        # Handle info fetch result
+        self.fetching_status_label.configure(text="")
 
         if not success:
             self.page1_error_label.configure(text=f"Error fetching video info: {e}")
@@ -158,13 +136,11 @@ class YouTubeDownloaderGUI(ctk.CTk):
 
         self._show_page(self.page2_format_selection)
 
-
     def _select_format(self, format_type: str):
-        """Stores the selected format and prepares for quality/resolution selection."""
+        # Store format and update quality options
         self.download_format = format_type
         log.info(f"Selected format: {self.download_format}")
 
-        # Populate the quality combobox based on the selected format
         if self.download_format == "mp3":
             if not self.available_audio_qualities:
                 self.page3_error_label.configure(text="No audio qualities found for this video.")
@@ -172,7 +148,6 @@ class YouTubeDownloaderGUI(ctk.CTk):
                 self.quality_combobox.configure(values=["No qualities available"])
             else:
                 self.quality_combobox.configure(values=self.available_audio_qualities)
-                # Set default to the highest quality if available
                 self.quality_combobox.set(self.available_audio_qualities[0]) 
         elif self.download_format == "mp4":
             if not self.available_video_resolutions:
@@ -181,13 +156,12 @@ class YouTubeDownloaderGUI(ctk.CTk):
                 self.quality_combobox.configure(values=["No resolutions available"])
             else:
                 self.quality_combobox.configure(values=self.available_video_resolutions)
-                # Set default to the highest resolution if available
                 self.quality_combobox.set(self.available_video_resolutions[0]) 
         
         self._show_page(self.page3_quality_selection)
 
     def _final_download(self):
-        """Validates the final selection and sets data_ready to True."""
+        # Validate and finalize selection
         selected_quality = self.quality_combobox.get().strip()
 
         if not selected_quality or selected_quality in ["No qualities available", "No resolutions available"]:
@@ -198,19 +172,13 @@ class YouTubeDownloaderGUI(ctk.CTk):
         self.resolution = selected_quality
         self.data_ready = True
         log.info(f"Final selection - Format: {self.download_format}, Quality: {self.resolution}")
-        self.destroy() # Close the GUI
+        self.destroy()
 
     def get_inputs(self):
-        """
-        Displays the GUI and waits for user input.
-        Returns:
-            A tuple containing: (video_url, format, quality_resolution, video_title).
-            All elements are None if inputs are not successfully gathered (e.g., window closed).
-        """
-        self.mainloop() # Start the GUI interaction
+        """Show GUI and return user input or None if cancelled."""
+        self.mainloop()
 
-        # This part executes after self.destroy() is called
-        if not self.data_ready: # If window was closed without pressing Download button
+        if not self.data_ready:
             log.info("GUI was closed or inputs were not finalized by the user. Exiting.")
             return None, None, None, None
         
@@ -226,6 +194,7 @@ class YouTubeDownloaderGUI(ctk.CTk):
         return self.video_url, self.download_format, self.resolution, self.video_title
 
 if __name__ == "__main__":
+    # Run GUI if executed directly
     app_gui = YouTubeDownloaderGUI()
     video_url, download_format, resolution, video_title = app_gui.get_inputs()
 

@@ -1,5 +1,5 @@
 # constants.py for contant variables
-PROGRAM_VERSION = '1.0.3-beta'
+PROGRAM_VERSION = '1.1.3-beta'
 
 INFO_TITLE = f"YouTube Downloader v{PROGRAM_VERSION}"
 WARNING_TITLE = f"WARNING - YouTube Downloader v{PROGRAM_VERSION}"

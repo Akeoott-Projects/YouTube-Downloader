@@ -3,18 +3,26 @@
 import yt_dlp
 from logging_setup import log
 from error_handler import gather_info
+import sys, os
+
+def get_cookies_file_path():
+    """Return path to cookies file if it exists, else None."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cookie_path = os.path.join(base_dir, 'www.youtube.com_cookies.txt')
+    if os.path.isfile(cookie_path):
+        log.debug("yt_info_fetch: Cookies file will be used.")
+        return cookie_path
+    log.debug("yt_info_fetch: No cookies file found.")
+    return None
 
 def fetch_youtube_video_info(url: str):
-    """
-    Fetches available audio qualities, video resolutions, and the video title for a given YouTube URL using yt-dlp.
-
-    Args:
-        url (str): The YouTube video URL.
-
-    Returns:
-        tuple: (success (bool), video_title (str), audio_qualities (list), video_resolutions (list), error_message (str))
-    """
-    log.info(f"Attempting to fetch video info for: {url}")
+    """Fetch video title, available audio qualities, and video resolutions for a YouTube URL."""
+    log.info(f"[yt_info_fetch] Fetching video info for: {url}")
+    cookies_path = get_cookies_file_path()
+    if cookies_path:
+        log.debug("[yt_info_fetch] yt_dlp will use cookies file.")
+    else:
+        log.debug("[yt_info_fetch] yt_dlp will not use a cookies file.")
 
     video_title = ""
     audio_qualities = []
@@ -22,42 +30,47 @@ def fetch_youtube_video_info(url: str):
     e = ""
 
     try:
-        # Options for fetching all available formats without downloading
+        # yt-dlp options for info extraction only
         ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best', # Prioritize mp4 for video, m4a for audio
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
             'listformats': True,
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
         }
+        if cookies_path:
+            ydl_opts['cookiefile'] = cookies_path
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False) # Only extract info, don't download
+            try:
+                info_dict = ydl.extract_info(url, download=False)
+            except yt_dlp.utils.ExtractorError as e:
+                if 'cookies' in str(e).lower():
+                    log.error(f"Cookies are required but not provided for {url}: {e}")
+                    gather_info(e, "error", "Cookies are required for this video but none were provided. Please provide cookies.txt if needed.", __file__)
+                    return False, "", [], [], "Cookies required but not provided."
+                else:
+                    raise
 
-            if isinstance(info_dict, dict) and 'entries' in info_dict: # Handle playlists/channels
-                info_dict = info_dict['entries'][0] # Take the first video if it's a playlist
+            if isinstance(info_dict, dict) and 'entries' in info_dict: # Playlist/channel
+                info_dict = info_dict['entries'][0]
 
-            # Extract the video title
             video_title = info_dict.get('title', '') # type: ignore
-
             formats = info_dict.get('formats', []) # type: ignore
 
             for f in formats:
-                # Audio qualities (check for audio-only streams and bitrate)
+                # Audio qualities (audio-only streams)
                 if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
-                    abr = f.get('abr') # Average bitrate in kbps
+                    abr = f.get('abr')
                     if abr:
                         audio_qualities.append(f"{int(abr)}kbps")
-
-                # Video resolutions (check for video streams, preferably with audio if 'best' is used)
-                # Or for separate video streams to offer maximum resolution
-                if f.get('vcodec') != 'none': # It's a video stream
+                # Video resolutions (video streams, mp4 only)
+                if f.get('vcodec') != 'none':
                     height = f.get('height')
                     ext = f.get('ext')
-                    if height and ext == 'mp4': # Assuming you want MP4 video specifically
+                    if height and ext == 'mp4':
                         video_resolutions.append(f"{height}p")
-                        
-            # Deduplicate and sort lists
+            # Remove duplicates and sort
             audio_qualities = sorted(list(set(audio_qualities)), key=lambda x: int(x.replace('kbps', '')), reverse=True)
             video_resolutions = sorted(list(set(video_resolutions)), key=lambda x: int(x.replace('p', '')), reverse=True)
 
@@ -68,13 +81,13 @@ def fetch_youtube_video_info(url: str):
         gather_info(e, "error", "Could not fetch required information about the video.", __file__)
         return False, "", [], [], e
     except Exception as e:
-        log.exception(f"Unexpected error fetching info for {url}: {e}") # Logs traceback
+        log.exception(f"Unexpected error fetching info for {url}: {e}")
         gather_info(e, "error", "Could not fetch required information about the video.", __file__)
         return False, "", [], [], e
 
 if __name__ == '__main__':
-
-    test_url_valid = "https://www.youtube.com/watch?v=hrnASwStFec" # Rick Astley - Never Gonna Give You Up
+    # Simple test for valid and invalid URLs
+    test_url_valid = "https://www.youtube.com/watch?v=hrnASwStFec"
     test_url_invalid = "https://www.youtube.com/watch?v=invalidvideoid"
 
     print(f"\n--- Testing valid URL: {test_url_valid} ---")

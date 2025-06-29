@@ -1,5 +1,3 @@
-# Improved error_handler.py for handling and displaying errors
-
 from logging_setup import log
 from constants import WARNING_TITLE, ERROR_TITLE, INFO_TITLE, ISSUE_INFO_HTML
 
@@ -9,16 +7,15 @@ import traceback
 from PyQt5.QtWidgets import QApplication, QMessageBox, QPushButton
 from PyQt5.QtCore import Qt, QCoreApplication
 
-
+# Ensure a single QApplication instance exists
 def get_app():
-    """Ensure a single QApplication instance exists."""
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
     return app
 
+# Format detailed error information for display and copying
 def format_error_details(e: Exception, location: str, context: str) -> str:
-    """Format detailed error information for display and copying."""
     return (
         f"Exception: {type(e).__name__}\n"
         f"Message: {e}\n"
@@ -27,6 +24,7 @@ def format_error_details(e: Exception, location: str, context: str) -> str:
         f"Traceback:\n{traceback.format_exc()}"
     )
 
+# Display an error/warning/info dialog to the user
 def error_display(
     e: Exception,
     e_type: str,
@@ -34,9 +32,6 @@ def error_display(
     location: str,
     exit_on_close: bool = True
 ):
-    """
-    Display an error/warning/info dialog to the user.
-    """
     app = get_app()
     qt_box = QMessageBox()
     qt_box.setTextFormat(Qt.RichText) # type: ignore
@@ -101,15 +96,13 @@ def error_display(
         QCoreApplication.quit()
         sys.exit()
 
+# Gather traceback info and display/log the error
 def gather_info(
     e: Exception,
     e_type: str,
     context: str,
     file_name: str
 ):
-    """
-    Gather traceback info and display/log the error.
-    """
     exc_type, exc_value, exc_traceback = sys.exc_info()
     frames = traceback.extract_tb(exc_traceback)
     try:

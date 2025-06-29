@@ -7,31 +7,18 @@ import tkinter.font as tkfont
 from error_handler import gather_info
 from logging_setup import log
 
-# --- Internal Helper Functions ---
+
+# Get absolute path to resource (handles PyInstaller and dev mode)
 def _resource_path(relative_path):
-    """
-    Get absolute path to resource, works for dev and for PyInstaller .exe.
-    """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS    # type: ignore
+        base_path = sys._MEIPASS # type: ignore
     except AttributeError:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
-# --- Public Font Loading Function ---
-def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
-    """
-    Loads a font from the given path for use in the application.
-    Compatible with Windows, macOS, Linux, and PyInstaller.exe.
-    This function should ideally be called once at application startup.
 
-    Args:
-        font_path: The relative path to the .ttf font file.
-    Returns:
-        True if font loaded successfully, False otherwise.
-    """
+# Load a font for use in the application (cross-platform)
+def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
     path = _resource_path(font_path)
     if not os.path.exists(path):
         log.warning(f"Font file not found: {font_path}")
@@ -40,6 +27,7 @@ def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
 
     try:
         if sys.platform.startswith("win"):
+            # Windows: use AddFontResourceExW
             try:
                 FR_PRIVATE = 0x10
                 result = ctypes.windll.gdi32.AddFontResourceExW(path, FR_PRIVATE, 0) # type: ignore
@@ -55,16 +43,16 @@ def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
                 gather_info(e, "warning", f"Error occurred while loading font {font_path} on Windows.", __file__)
                 return False
         else:
+            # macOS/Linux: try referencing font with Tkinter
             try:
-                # Create a temporary Tkinter root to initialize Tk
                 root = tk.Tk()
-                root.withdraw() # Hide the main window
+                root.withdraw()
                 try:
                     tkfont.Font(root=root, family="Roboto")
                     log.info(f"Successfully referenced system font: Roboto (from {font_path})")
                     root.destroy()
                     return True
-                except tk.TclError as e: # Corrected from tkfont.TclError to tk.TclError
+                except tk.TclError as e:
                     log.warning(f"TclError referencing font with Tkinter: {e}")
                     gather_info(e, "warning", f"TclError occurred while referencing font Roboto with Tkinter.<br>Ensure 'Roboto' font is installed on your system.", __file__)
                     root.destroy()
@@ -83,11 +71,11 @@ def load_application_font(font_path="assets/Roboto-VariableFont_wdth,wght.ttf"):
         gather_info(e, "warning", f"A {type(e).__name__} unexpectedly occurred.<br>Error loading font {font_path}", __file__)
     return False
 
-# --- Global Flag for Font Loading Status ---
+
+# Global flag for font loading status
 _font_loaded_successfully = False
 
-# --- Automatic Font Loading on Module Import ---
-# This ensures the font is loaded once when the module is first imported.
-# You can customize the font path here if it's always the same.
+
+# Automatically load font on module import
 if not _font_loaded_successfully:
     _font_loaded_successfully = load_application_font("assets/Roboto-VariableFont_wdth,wght.ttf")
