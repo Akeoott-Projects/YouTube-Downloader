@@ -5,6 +5,7 @@ import sys
 import tkinter as tk
 from tkinter import messagebox as msgbox
 from tkinter import filedialog
+import tkinter.ttk as ttk
 import yt_dlp
 from logging_setup import log
 from constants import ERROR_TITLE
@@ -65,68 +66,76 @@ class DownloadYT:
                 log.error(f"An error occurred while determining what download format to select: {self.download_format}")
                 gather_info(e, "error", f"An error occurred while determining what download format to select: {self.download_format}", __name__)
 
+    def _show_progress_window(self):
+        self._progress_root = tk.Tk()
+        self._progress_root.title("Downloading...")
+        self._progress_root.geometry("400x120")
+        self._progress_root.resizable(False, False)
+        self._progress_label = tk.Label(self._progress_root, text="Preparing download...", wraplength=380, justify="center")
+        self._progress_label.pack(expand=True, fill="both", padx=10, pady=(15, 5))
+        self._progress_bar = ttk.Progressbar(self._progress_root, orient="horizontal", length=350, mode="determinate")
+        self._progress_bar.pack(padx=20, pady=(0, 15))
+        self._progress_root.update()
+
+    def _update_progress(self, percent: float, status: str = ""): 
+        if hasattr(self, '_progress_label'):
+            self._progress_label.config(text=status)
+        if hasattr(self, '_progress_bar'):
+            self._progress_bar['value'] = percent
+        if hasattr(self, '_progress_root') and self._progress_root is not None:
+            self._progress_root.update_idletasks()
+
+    def _hook(self, d):
+        if d['status'] == 'downloading':
+            percent = 0
+            if 'total_bytes' in d and d['total_bytes']:
+                percent = (d['downloaded_bytes'] / d['total_bytes']) * 100
+            elif 'total_bytes_estimate' in d and d['total_bytes_estimate']:
+                percent = (d['downloaded_bytes'] / d['total_bytes_estimate']) * 100
+            speed = d.get('speed')
+            eta = d.get('eta')
+            speed_str = f" at {speed/1024/1024:.2f} MB/s" if speed else ""
+            eta_str = f", ETA: {eta}s" if eta else ""
+            status = f"Downloading: {percent:.1f}%{speed_str}{eta_str}"
+            self._update_progress(percent, status)
+        elif d['status'] == 'finished':
+            self._update_progress(100, "Download complete!")
+
     def _download(self, fmt: str, quality: str | None = None, best: bool = False):
         """
         Generalized download method for both mp3 and mp4, with or without quality.
         """
+        base_opts = {
+            'outtmpl': f"{self.video_title}.%(ext)s",
+            'nocheckcertificate': True,
+            'no_warnings': True,
+            'ignoreerrors': False,
+            'logger': YTDlpLogger(),
+            'progress_hooks': [self._hook],
+        }
         if fmt == 'mp4':
             if best or not quality:
-                base_opts = {
-                    'outtmpl': f"{self.video_title}.%(ext)s",
-                    'nocheckcertificate': True,
-                    'no_warnings': True,
-                    'ignoreerrors': False,
-                    'logger': YTDlpLogger(),
+                base_opts.update({
                     'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                     'merge_output_format': 'mp4',
-                    'postprocessors': [{
-                        'key': 'FFmpegVideoConvertor',
-                        'preferedformat': 'mp4'
-                    }],
-                }
+                })
             else:
-                base_opts = {
-                    'outtmpl': f"{self.video_title}.%(ext)s",
-                    'nocheckcertificate': True,
-                    'no_warnings': True,
-                    'ignoreerrors': False,
-                    'logger': YTDlpLogger(),
+                base_opts.update({
                     'format': f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                     'merge_output_format': 'mp4',
-                    'postprocessors': [{
-                        'key': 'FFmpegVideoConvertor',
-                        'preferedformat': 'mp4'
-                    }],
-                }
+                })
             cleanup_temp = True
         elif fmt == 'mp3':
-            if best or not quality:
-                base_opts = {
-                    'outtmpl': f"{self.video_title}.%(ext)s",
-                    'nocheckcertificate': True,
-                    'no_warnings': True,
-                    'ignoreerrors': False,
-                    'format': 'bestaudio/best',
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                    }],
-                    'logger': YTDlpLogger(),
-                }
-            else:
-                base_opts = {
-                    'outtmpl': f"{self.video_title}.%(ext)s",
-                    'nocheckcertificate': True,
-                    'no_warnings': True,
-                    'ignoreerrors': False,
-                    'format': 'bestaudio/best',
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': quality,
-                    }],
-                    'logger': YTDlpLogger(),
-                }
+            postproc = {
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+            }
+            if not (best or not quality):
+                postproc['preferredquality'] = quality
+            base_opts.update({
+                'format': 'bestaudio/best',
+                'postprocessors': [postproc],
+            })
             cleanup_temp = False
         else:
             raise ValueError(f"Unsupported format: {fmt}")
@@ -202,15 +211,6 @@ class DownloadYT:
         if ffmpeg_bin_path:
             ydl_opts['ffmpeg_location'] = ffmpeg_bin_path
         return ydl_opts
-
-    def _show_progress_window(self):
-        self._progress_root = tk.Tk()
-        self._progress_root.title("Downloading...")
-        self._progress_root.geometry("400x100")
-        self._progress_root.resizable(False, False)
-        label = tk.Label(self._progress_root, text="This might take a while.\nThe moment this window closes, your download should be finished.", wraplength=380, justify="center")
-        label.pack(expand=True, fill="both", padx=10, pady=20)
-        self._progress_root.update()
 
     def _close_progress_window(self):
         if hasattr(self, '_progress_root') and self._progress_root:
