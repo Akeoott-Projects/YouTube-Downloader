@@ -27,41 +27,116 @@ class DownloadYT:
 
     def __init__(self, download_info: list[str]):
         """
-        Initializes the downloader with video/audio info and starts the download process.
+        Initializes the downloader with video/audio info.
 
         Args:
             download_info (list[str]): [video_url, download_format, resolution, video_title]
         """
         log.info(f"DownloadYT initialized with info: {download_info}")
-
         self.video_url = download_info[0]
         self.download_format = download_info[1]
         self.resolution = download_info[2]
         self.video_title = download_info[3]
         self.directory = None
 
+    def run(self):
+        """
+        Selects and runs the appropriate download method based on format and resolution.
+        """
         if not self.video_title:
             log.error("Video title is empty. Aborting.")
             msgbox.showerror(title=ERROR_TITLE, message="Video title cannot be empty.")
             sys.exit(1)
 
-        # Select download method based on format and resolution
         if self.download_format == "mp4":
-            if self.resolution[-1:] == "p":
-                self.download_mp4()
+            if self.resolution and self.resolution[-1:] == "p":
+                self._download('mp4', quality=''.join(filter(str.isdigit, self.resolution)), best=False)
             else:
-                self.download_mp4_best_qual()
+                self._download('mp4', best=True)
         elif self.download_format == "mp3":
-            if self.resolution[-4:] == "kbps":
-                self.download_mp3()
+            if self.resolution and self.resolution[-4:] == "kbps":
+                self._download('mp3', quality=''.join(filter(str.isdigit, self.resolution)), best=False)
             else:
-                self.download_mp3_best_qual()
+                self._download('mp3', best=True)
         else:
             try:
                 raise ValueError(f"Download format not in range of 'mp4' or 'mp3'. Format: {self.download_format}")
             except ValueError as e:
                 log.error(f"An error occurred while determining what download format to select: {self.download_format}")
                 gather_info(e, "error", f"An error occurred while determining what download format to select: {self.download_format}", __name__)
+
+    def _download(self, fmt: str, quality: str | None = None, best: bool = False):
+        """
+        Generalized download method for both mp3 and mp4, with or without quality.
+        """
+        if fmt == 'mp4':
+            if best or not quality:
+                base_opts = {
+                    'outtmpl': f"{self.video_title}.%(ext)s",
+                    'nocheckcertificate': True,
+                    'no_warnings': True,
+                    'ignoreerrors': False,
+                    'logger': YTDlpLogger(),
+                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'merge_output_format': 'mp4',
+                    'postprocessors': [{
+                        'key': 'FFmpegVideoConvertor',
+                        'preferedformat': 'mp4'
+                    }],
+                }
+            else:
+                base_opts = {
+                    'outtmpl': f"{self.video_title}.%(ext)s",
+                    'nocheckcertificate': True,
+                    'no_warnings': True,
+                    'ignoreerrors': False,
+                    'logger': YTDlpLogger(),
+                    'format': f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'merge_output_format': 'mp4',
+                    'postprocessors': [{
+                        'key': 'FFmpegVideoConvertor',
+                        'preferedformat': 'mp4'
+                    }],
+                }
+            cleanup_temp = True
+        elif fmt == 'mp3':
+            if best or not quality:
+                base_opts = {
+                    'outtmpl': f"{self.video_title}.%(ext)s",
+                    'nocheckcertificate': True,
+                    'no_warnings': True,
+                    'ignoreerrors': False,
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                    }],
+                    'logger': YTDlpLogger(),
+                }
+            else:
+                base_opts = {
+                    'outtmpl': f"{self.video_title}.%(ext)s",
+                    'nocheckcertificate': True,
+                    'no_warnings': True,
+                    'ignoreerrors': False,
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': quality,
+                    }],
+                    'logger': YTDlpLogger(),
+                }
+            cleanup_temp = False
+        else:
+            raise ValueError(f"Unsupported format: {fmt}")
+
+        directory = self._select_directory()
+        if not directory:
+            sys.exit(0)
+        ydl_opts = self._prepare_ydl_opts(base_opts, directory)
+        self._download_with_opts(ydl_opts, cleanup_temp=cleanup_temp)
+        sys.exit(0)
 
     def _get_ffmpeg_path(self):
         """
@@ -176,112 +251,6 @@ class DownloadYT:
                     output_path = template.replace('%(ext)s', 'mp4')
                     self._cleanup_temp_files(output_path)
 
-    def download_mp4(self):
-        """
-        Downloads a YouTube video as MP4 with the specified resolution.
-        Ensures the final file is in a Windows-compatible format (H.264/AAC in MP4).
-        """
-        resolution = ''.join(filter(str.isdigit, self.resolution))
-        if not resolution:
-            return self.download_mp4_best_qual()
-
-        base_opts = {
-            'outtmpl': f"{self.video_title}.%(ext)s",
-            'nocheckcertificate': True,
-            'no_warnings': True,
-            'ignoreerrors': False,
-            'logger': YTDlpLogger(),
-            'format': f'bestvideo[height<={resolution}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'merge_output_format': 'mp4',
-            'postprocessors': [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4'
-            }],
-        }
-
-        directory = self._select_directory()
-        if not directory:
-            sys.exit(0)
-        ydl_opts = self._prepare_ydl_opts(base_opts, directory)
-        self._download_with_opts(ydl_opts, cleanup_temp=True)
-        sys.exit(0)
-
-    def download_mp4_best_qual(self):
-        """
-        Downloads a YouTube video as MP4 in the best available quality.
-        Ensures the final file is in a Windows-compatible format (H.264/AAC in MP4).
-        """
-        base_opts = {
-            'outtmpl': f"{self.video_title}.%(ext)s",
-            'nocheckcertificate': True,
-            'no_warnings': True,
-            'ignoreerrors': False,
-            'logger': YTDlpLogger(),
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'merge_output_format': 'mp4',
-            'postprocessors': [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4'
-            }],
-        }
-        directory = self._select_directory()
-        if not directory:
-            sys.exit(0)
-        ydl_opts = self._prepare_ydl_opts(base_opts, directory)
-        self._download_with_opts(ydl_opts, cleanup_temp=True)
-        sys.exit(0)
-
-    def download_mp3(self):
-        """
-        Downloads a YouTube video as MP3 with the specified quality.
-        """
-        quality = ''.join(filter(str.isdigit, self.resolution))
-        if not quality:
-            return self.download_mp3_best_qual()
-
-        base_opts = {
-            'outtmpl': f"{self.video_title}.%(ext)s",
-            'nocheckcertificate': True,
-            'no_warnings': True,
-            'ignoreerrors': False,
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': quality,
-            }],
-            'logger': YTDlpLogger(),
-        }
-        directory = self._select_directory()
-        if not directory:
-            sys.exit(0)
-        ydl_opts = self._prepare_ydl_opts(base_opts, directory)
-        self._download_with_opts(ydl_opts, cleanup_temp=False)
-        sys.exit(0)
-
-    def download_mp3_best_qual(self):
-        """
-        Downloads a YouTube video as MP3 in the best available quality.
-        """
-        base_opts = {
-            'outtmpl': f"{self.video_title}.%(ext)s",
-            'nocheckcertificate': True,
-            'no_warnings': True,
-            'ignoreerrors': False,
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-            }],
-            'logger': YTDlpLogger(),
-        }
-        directory = self._select_directory()
-        if not directory:
-            sys.exit(0)
-        ydl_opts = self._prepare_ydl_opts(base_opts, directory)
-        self._download_with_opts(ydl_opts, cleanup_temp=False)
-        sys.exit(0)
-
 if __name__ == "__main__":
     # Example usage
     video_url: str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -289,4 +258,5 @@ if __name__ == "__main__":
     resolution: str = "1080p"
     video_title: str = "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)"
     download_info: list[str] = [video_url, download_format, resolution, video_title]
-    DownloadYT(download_info)
+    downloader = DownloadYT(download_info)
+    downloader.run()
